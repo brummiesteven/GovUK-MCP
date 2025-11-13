@@ -6,12 +6,17 @@ NOTE: This is a hobby project of which around 80% is vibe coded, expect issues a
 ## 🌟 Features
 
 - **33 Government APIs**: Companies House, Parliament, NHS, Transport, and more
-- **Production-Ready**: Comprehensive input validation, error sanitization, rate limiting
-- **Well-Tested**: 185+ test cases covering critical functionality
-- **Type-Safe**: Full input validation with regex patterns
-- **Secure**: Sanitized errors, secure authentication, no information disclosure
-- **Fast**: Concurrent execution for bulk operations (voting records)
-- **Maintainable**: Tool registry pattern, modular architecture
+
+Try:
+"What are the five nearest postcodes to SW1A 1AA?"
+"When is the next Bank Holiday"
+"How can I get from Brixton to St Pancras?"
+"What's the status of the Circle Line"
+"Where's my nearest Hospital?"
+"Who's my MP?"
+"What's their voting record?"
+
+And more.
 
 ## 📦 Installation
 
