@@ -1,10 +1,7 @@
 # Gov.uk MCP Server
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code Grade: A](https://img.shields.io/badge/Grade-A-brightgreen.svg)]()
-
 A comprehensive Model Context Protocol (MCP) server providing access to 27 UK government data sources and services. Built for Claude Desktop and other MCP-compatible clients.
+NOTE: This is a hobby project of which around 80% is vibe coded, expect issues and use for demonstration purposes only. 
 
 ## 🌟 Features
 
