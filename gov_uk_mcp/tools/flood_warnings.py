@@ -1,16 +1,29 @@
 """Flood warnings tool."""
 import requests
 from datetime import datetime
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error
 
 
 FLOOD_API_URL = "https://environment.data.gov.uk/flood-monitoring"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def get_flood_warnings(postcode=None, area=None):
-    """Get active flood warnings for a postcode or area."""
+mcp = _get_mcp()
+
+
+@mcp.tool(meta={"ui": {"resourceUri": "ui://flood-warnings"}})
+def get_flood_warnings(postcode: Optional[str] = None, area: Optional[str] = None) -> dict:
+    """Get active flood warnings for England. Can filter by postcode or area.
+
+    Args:
+        postcode: Postcode to search for (optional)
+        area: Area name to search for (optional)
+    """
     try:
-        # Get all active flood warnings
         response = requests.get(
             f"{FLOOD_API_URL}/id/floods",
             timeout=10
@@ -23,12 +36,10 @@ def get_flood_warnings(postcode=None, area=None):
         if not items:
             return {"message": "No active flood warnings in England"}
 
-        # If postcode or area provided, filter results
         if postcode or area:
             search_term = (postcode or area).upper().replace(" ", "")
             filtered = []
             for item in items:
-                # Check if search term matches area description or code
                 description = item.get("description", "").upper()
                 area_name = item.get("eaAreaName", "").upper()
                 if search_term in description or search_term in area_name:
@@ -53,36 +64,6 @@ def get_flood_warnings(postcode=None, area=None):
         return {
             "total_warnings": len(warnings),
             "warnings": warnings,
-            "data_source": "Environment Agency Flood Monitoring API",
-            "retrieved_at": datetime.now().isoformat()
-        }
-
-    except (requests.Timeout, requests.RequestException, requests.HTTPError) as e:
-        return sanitize_api_error(e)
-
-
-def get_flood_areas():
-    """Get list of all flood warning areas."""
-    try:
-        response = requests.get(
-            f"{FLOOD_API_URL}/id/floodAreas",
-            params={"_limit": 50},
-            timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        areas = []
-        for item in data.get("items", []):
-            areas.append({
-                "area_name": item.get("label"),
-                "notation": item.get("notation"),
-                "county": item.get("county"),
-                "river_or_sea": item.get("riverOrSea")
-            })
-
-        return {
-            "areas": areas,
             "data_source": "Environment Agency Flood Monitoring API",
             "retrieved_at": datetime.now().isoformat()
         }

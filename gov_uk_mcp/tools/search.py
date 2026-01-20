@@ -6,13 +6,21 @@ from gov_uk_mcp.validation import InputValidator, ValidationError, sanitize_api_
 
 SEARCH_API_URL = "https://www.gov.uk/api/search.json"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def search_govuk(query, count=10):
-    """Search gov.uk content.
+mcp = _get_mcp()
+
+
+@mcp.tool
+def search_govuk(query: str, count: int = 10) -> dict:
+    """Search gov.uk content for guidance, policy documents, and other government information.
 
     Args:
-        query: Search query string
-        count: Number of results to return (max 1500)
+        query: Search query
+        count: Number of results to return (default: 10)
     """
     try:
         query = InputValidator.sanitize_query(query)
@@ -22,7 +30,7 @@ def search_govuk(query, count=10):
     try:
         response = requests.get(
             SEARCH_API_URL,
-            params={"q": query, "count": min(count, 50)},  # Limit to 50 for practicality
+            params={"q": query, "count": min(count, 50)},
             timeout=10
         )
 

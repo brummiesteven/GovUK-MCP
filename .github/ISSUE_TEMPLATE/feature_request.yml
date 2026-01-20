@@ -1,0 +1,68 @@
+name: Feature Request
+description: Suggest a new UK government API or feature
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! We're always looking to add more UK government APIs.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: A clear description of the feature you'd like to see
+      placeholder: I would like to add support for...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Feature Type
+      options:
+        - New UK Government API Integration
+        - Enhancement to Existing Tool
+        - Documentation Improvement
+        - Testing/Quality Improvement
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: api-link
+    attributes:
+      label: API Documentation Link
+      description: If this is a new API integration, please provide the official documentation
+      placeholder: https://...
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why is this feature useful? What problem does it solve?
+      placeholder: This would be useful for...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Usage
+      description: Show us how you'd like to use this feature
+      render: python
+      placeholder: |
+        # Example:
+        result = new_tool("parameter")
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Implementation Checklist
+      description: If implementing this yourself, here's what you'll need
+      options:
+        - label: I have checked this API is an official UK government service
+        - label: I have checked this API has public documentation
+        - label: I have checked this API doesn't require paid subscription
+        - label: I am willing to implement this feature myself

@@ -1,21 +1,26 @@
 """NHS service finder tool."""
 import requests
 from datetime import datetime
-from gov_uk_mcp.validation import sanitize_api_error
+from gov_uk_mcp.validation import sanitize_api_error, InputValidator, ValidationError
 
-# Using NHS API (requires registration at https://digital.nhs.uk/)
+
 NHS_API_URL = "https://api.nhs.uk"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def _get_postcode_coordinates(postcode):
-    """Get latitude and longitude for a postcode.
+mcp = _get_mcp()
 
-    Args:
-        postcode: UK postcode
 
-    Returns:
-        Tuple of (latitude, longitude) or (None, None) with error dict on failure
-    """
+def _get_postcode_coordinates(postcode: str):
+    """Get latitude and longitude for a postcode."""
+    try:
+        postcode = InputValidator.validate_uk_postcode(postcode)
+    except ValidationError as e:
+        return None, {"error": str(e)}
+
     try:
         response = requests.get(
             f"https://api.postcodes.io/postcodes/{postcode}",
@@ -41,18 +46,8 @@ def _get_postcode_coordinates(postcode):
         return None, sanitize_api_error(e)
 
 
-def _search_nhs_services(service_type, lat, lng, postcode):
-    """Search for NHS services near coordinates.
-
-    Args:
-        service_type: Type of service ('GP', 'Hospital', 'Pharmacy')
-        lat: Latitude
-        lng: Longitude
-        postcode: Original postcode searched
-
-    Returns:
-        Dictionary with search results or error
-    """
+def _search_nhs_services(service_type: str, lat: float, lng: float, postcode: str) -> dict:
+    """Search for NHS services near coordinates."""
     try:
         response = requests.get(
             f"{NHS_API_URL}/service-search/search",
@@ -80,7 +75,6 @@ def _search_nhs_services(service_type, lat, lng, postcode):
                 "distance": item.get("Distance")
             })
 
-        # Determine the results key based on service type
         results_key = service_type.lower() + ("ies" if service_type == "Pharmacy" else "s")
         if service_type == "GP":
             results_key = "services"
@@ -97,8 +91,13 @@ def _search_nhs_services(service_type, lat, lng, postcode):
         return sanitize_api_error(e)
 
 
-def find_gp_surgeries(postcode):
-    """Find GP surgeries near a postcode."""
+@mcp.tool(meta={"ui": {"resourceUri": "ui://nhs-services"}})
+def find_gp_surgeries(postcode: str) -> dict:
+    """Find GP surgeries near a postcode.
+
+    Args:
+        postcode: UK postcode
+    """
     coords, error = _get_postcode_coordinates(postcode)
     if error:
         return error
@@ -107,8 +106,13 @@ def find_gp_surgeries(postcode):
     return _search_nhs_services("GP", lat, lng, postcode)
 
 
-def find_hospitals(postcode):
-    """Find hospitals near a postcode."""
+@mcp.tool
+def find_hospitals(postcode: str) -> dict:
+    """Find hospitals near a postcode.
+
+    Args:
+        postcode: UK postcode
+    """
     coords, error = _get_postcode_coordinates(postcode)
     if error:
         return error
@@ -117,8 +121,13 @@ def find_hospitals(postcode):
     return _search_nhs_services("Hospital", lat, lng, postcode)
 
 
-def find_pharmacies(postcode):
-    """Find pharmacies near a postcode."""
+@mcp.tool
+def find_pharmacies(postcode: str) -> dict:
+    """Find pharmacies near a postcode.
+
+    Args:
+        postcode: UK postcode
+    """
     coords, error = _get_postcode_coordinates(postcode)
     if error:
         return error

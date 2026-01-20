@@ -8,14 +8,16 @@ from gov_uk_mcp.validation import InputValidator, ValidationError, sanitize_api_
 
 EPC_API_URL = "https://epc.opendatacommunities.org/api/v1"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def _get_auth(api_key):
-    """Create HTTPBasicAuth for EPC API.
+mcp = _get_mcp()
 
-    EPC API uses email:api_key format for Basic Auth.
-    If api_key contains ':', split into username/password.
-    Otherwise use api_key as username with empty password.
-    """
+
+def _get_auth(api_key: str) -> HTTPBasicAuth:
+    """Create HTTPBasicAuth for EPC API."""
     if ":" in api_key:
         username, password = api_key.split(":", 1)
         return HTTPBasicAuth(username, password)
@@ -23,15 +25,21 @@ def _get_auth(api_key):
         return HTTPBasicAuth(api_key, "")
 
 
-def search_epc_by_postcode(postcode):
-    """Search for EPCs by postcode."""
+@mcp.tool
+def search_epc_by_postcode(postcode: str) -> dict:
+    """Search for Energy Performance Certificates by postcode.
+
+    Args:
+        postcode: UK postcode
+
+    Returns energy ratings (A-G) and property details.
+    """
     api_key = os.getenv("EPC_API_KEY")
     if not api_key:
         return {"error": "EPC API key not configured"}
 
     try:
         postcode = InputValidator.validate_uk_postcode(postcode)
-        # Remove spaces for EPC API
         postcode = postcode.replace(" ", "")
     except ValidationError as e:
         return {"error": str(e)}
@@ -56,7 +64,7 @@ def search_epc_by_postcode(postcode):
             return {"message": "No EPCs found for this postcode"}
 
         certificates = []
-        for row in rows[:20]:  # Limit to 20 results
+        for row in rows[:20]:
             certificates.append({
                 "address": row.get("address"),
                 "postcode": row.get("postcode"),
@@ -77,55 +85,6 @@ def search_epc_by_postcode(postcode):
             "total_results": len(rows),
             "showing": len(certificates),
             "certificates": certificates,
-            "data_source": "EPC Open Data Communities API",
-            "retrieved_at": datetime.now().isoformat()
-        }
-
-    except (requests.Timeout, requests.RequestException, requests.HTTPError) as e:
-        return sanitize_api_error(e)
-
-
-def get_epc_recommendations(certificate_id):
-    """Get improvement recommendations for a specific EPC."""
-    try:
-        # Validate certificate_id to prevent injection attacks
-        certificate_id = InputValidator.validate_epc_certificate_id(certificate_id)
-    except ValidationError as e:
-        return {"error": str(e)}
-
-    api_key = os.getenv("EPC_API_KEY")
-    if not api_key:
-        return {"error": "EPC API key not configured"}
-
-    try:
-        response = requests.get(
-            f"{EPC_API_URL}/domestic/certificate/{certificate_id}",
-            headers={"Accept": "application/json"},
-            auth=_get_auth(api_key),
-            timeout=10
-        )
-
-        if response.status_code == 404:
-            return {"error": "Certificate not found"}
-
-        response.raise_for_status()
-        data = response.json()
-
-        rows = data.get("rows", [])
-        if not rows:
-            return {"error": "Certificate not found"}
-
-        cert = rows[0]
-
-        return {
-            "address": cert.get("address"),
-            "current_rating": cert.get("current-energy-rating"),
-            "potential_rating": cert.get("potential-energy-rating"),
-            "main_heating": cert.get("main-heating"),
-            "main_fuel": cert.get("main-fuel"),
-            "walls_description": cert.get("walls-description"),
-            "roof_description": cert.get("roof-description"),
-            "windows_description": cert.get("windows-description"),
             "data_source": "EPC Open Data Communities API",
             "retrieved_at": datetime.now().isoformat()
         }

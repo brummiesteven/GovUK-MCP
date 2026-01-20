@@ -7,6 +7,13 @@ from gov_uk_mcp.validation import InputValidator, ValidationError, sanitize_api_
 
 COMPANIES_HOUSE_API_URL = "https://api.company-information.service.gov.uk"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
+
+mcp = _get_mcp()
+
 
 def _get_auth():
     """Get auth for Companies House API."""
@@ -16,8 +23,14 @@ def _get_auth():
     return (api_key, "")
 
 
-def search_companies(query, items_per_page=20):
-    """Search for companies by name."""
+@mcp.tool
+def search_companies(query: str, items_per_page: int = 20) -> dict:
+    """Search for UK companies by name using Companies House API.
+
+    Args:
+        query: Company name to search for
+        items_per_page: Number of results to return (default: 20)
+    """
     auth = _get_auth()
     if not auth:
         return {"error": "Companies House API key not configured"}
@@ -61,8 +74,13 @@ def search_companies(query, items_per_page=20):
         return sanitize_api_error(e)
 
 
-def get_company(company_number):
-    """Get company details by company number."""
+@mcp.tool(meta={"ui": {"resourceUri": "ui://company-info"}})
+def get_company(company_number: str) -> dict:
+    """Get detailed company information by company number from Companies House.
+
+    Args:
+        company_number: Company number (e.g., 12345678)
+    """
     auth = _get_auth()
     if not auth:
         return {"error": "Companies House API key not configured"}
@@ -108,8 +126,13 @@ def get_company(company_number):
         return sanitize_api_error(e)
 
 
-def get_company_officers(company_number):
-    """Get company officers by company number."""
+@mcp.tool
+def get_company_officers(company_number: str) -> dict:
+    """Get list of company officers (directors, secretaries) by company number.
+
+    Args:
+        company_number: Company number (e.g., 12345678)
+    """
     auth = _get_auth()
     if not auth:
         return {"error": "Companies House API key not configured"}
@@ -159,8 +182,14 @@ def get_company_officers(company_number):
         return sanitize_api_error(e)
 
 
-def get_company_filing_history(company_number, items_per_page=20):
-    """Get company filing history by company number."""
+@mcp.tool
+def get_company_filing_history(company_number: str, items_per_page: int = 20) -> dict:
+    """Get company filing history by company number from Companies House.
+
+    Args:
+        company_number: Company number (e.g., 12345678)
+        items_per_page: Number of results to return (default: 20)
+    """
     auth = _get_auth()
     if not auth:
         return {"error": "Companies House API key not configured"}

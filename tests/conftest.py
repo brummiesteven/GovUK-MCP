@@ -4,24 +4,34 @@ This module provides common test fixtures and configuration used across
 all test files.
 """
 
-import os
 import sys
 from typing import Any, Dict
 from unittest.mock import Mock
 import pytest
 import requests
 
-# Mock mcp module for testing
-sys.modules["mcp"] = Mock()
-sys.modules["mcp.types"] = Mock()
-sys.modules["mcp.server"] = Mock()
-sys.modules["mcp.server.stdio"] = Mock()
 
-# Import mock types after setting up mocks
-from tests.mock_mcp import Tool
+# Create a proper mock for FastMCP that preserves decorated functions
+class MockFastMCP:
+    """Mock FastMCP class for testing."""
 
-sys.modules["mcp"].types = Mock()
-sys.modules["mcp"].types.Tool = Tool
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name", "test")
+        self.instructions = kwargs.get("instructions", "")
+
+    def tool(self, func):
+        """Decorator that returns the function unchanged."""
+        return func
+
+    def run(self):
+        """Mock run method."""
+        pass
+
+
+# Mock fastmcp module for testing to avoid import issues
+mock_fastmcp = Mock()
+mock_fastmcp.FastMCP = MockFastMCP
+sys.modules["fastmcp"] = mock_fastmcp
 
 
 @pytest.fixture
@@ -254,21 +264,3 @@ def sample_company_details_response() -> Dict[str, Any]:
         "has_insolvency_history": False,
         "has_charges": False,
     }
-
-
-@pytest.fixture(autouse=True)
-def reset_tool_registry():
-    """Reset ToolRegistry before each test to ensure clean state.
-
-    This fixture runs automatically before each test to prevent
-    test pollution from registered tools.
-    """
-    from gov_uk_mcp.registry import ToolRegistry
-
-    # Store original tools
-    original_tools = ToolRegistry._tools.copy()
-
-    yield
-
-    # Restore original tools after test
-    ToolRegistry._tools = original_tools

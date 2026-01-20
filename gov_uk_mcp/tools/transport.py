@@ -1,15 +1,48 @@
 """Transport status tool."""
 import os
+import re
 import requests
 from datetime import datetime
 from gov_uk_mcp.validation import sanitize_api_error, InputValidator, ValidationError
+from typing import Optional
+
+
+def _validate_location(location: str, field_name: str = "Location") -> str:
+    """Validate location input for journey planning."""
+    if not location:
+        raise ValidationError(f"{field_name} is required")
+
+    cleaned = location.strip()
+
+    if len(cleaned) < 2:
+        raise ValidationError(f"{field_name} must be at least 2 characters")
+
+    if len(cleaned) > 200:
+        raise ValidationError(f"{field_name} must not exceed 200 characters")
+
+    # Check for potentially dangerous characters that could be used in path traversal
+    if re.search(r'[<>"\']', cleaned):
+        raise ValidationError(f"{field_name} contains invalid characters")
+
+    return cleaned
 
 
 TFL_API_URL = "https://api.tfl.gov.uk"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def get_tube_status():
-    """Get status of all London Underground lines."""
+mcp = _get_mcp()
+
+
+@mcp.tool(meta={"ui": {"resourceUri": "ui://tube-status"}})
+def get_tube_status() -> dict:
+    """Get current status of all London Underground lines.
+
+    Returns status, delays, and disruption info for all tube lines.
+    """
     api_key = os.getenv("TFL_API_KEY")
 
     try:
@@ -45,10 +78,14 @@ def get_tube_status():
         return sanitize_api_error(e)
 
 
-def get_line_status(line_id):
-    """Get status for a specific line."""
+@mcp.tool
+def get_line_status(line_id: str) -> dict:
+    """Get status for a specific London Underground line.
+
+    Args:
+        line_id: Line ID (e.g., 'central', 'northern', 'piccadilly')
+    """
     try:
-        # Validate line_id to prevent injection attacks
         line_id = InputValidator.validate_tfl_line_id(line_id)
     except ValidationError as e:
         return {"error": str(e)}
@@ -92,68 +129,31 @@ def get_line_status(line_id):
         return sanitize_api_error(e)
 
 
-def get_station_arrivals(station_id):
-    """Get arrival predictions for a station."""
-    try:
-        # Validate station_id to prevent injection attacks
-        station_id = InputValidator.validate_alphanumeric_id(station_id, "Station ID", max_length=20)
-    except ValidationError as e:
-        return {"error": str(e)}
-
-    api_key = os.getenv("TFL_API_KEY")
-
-    try:
-        params = {}
-        if api_key:
-            params["app_key"] = api_key
-
-        response = requests.get(
-            f"{TFL_API_URL}/StopPoint/{station_id}/Arrivals",
-            params=params,
-            timeout=10
-        )
-
-        if response.status_code == 404:
-            return {"error": "Station not found"}
-
-        response.raise_for_status()
-        data = response.json()
-
-        arrivals = []
-        for arrival in data[:10]:  # Limit to 10 arrivals
-            arrivals.append({
-                "line": arrival.get("lineName"),
-                "destination": arrival.get("destinationName"),
-                "platform": arrival.get("platformName"),
-                "expected_arrival": arrival.get("expectedArrival"),
-                "time_to_station": arrival.get("timeToStation"),
-                "current_location": arrival.get("currentLocation")
-            })
-
-        # Sort by time to station
-        arrivals.sort(key=lambda x: x.get("time_to_station", 999999))
-
-        return {
-            "station_id": station_id,
-            "arrivals": arrivals,
-            "data_source": "Transport for London API",
-            "retrieved_at": datetime.now().isoformat()
-        }
-
-    except (requests.Timeout, requests.RequestException, requests.HTTPError) as e:
-        return sanitize_api_error(e)
-
-
-def plan_journey(from_location, to_location, via=None, time=None, time_is_arrival=False):
-    """Plan a journey between two locations in London.
+@mcp.tool(meta={"ui": {"resourceUri": "ui://journey-planner"}})
+def plan_journey(
+    from_location: str,
+    to_location: str,
+    via: Optional[str] = None,
+    time: Optional[str] = None,
+    time_is_arrival: bool = False
+) -> dict:
+    """Plan a journey between two locations in London using public transport.
 
     Args:
-        from_location: Starting point (postcode, station name, or coordinates)
-        to_location: Destination (postcode, station name, or coordinates)
+        from_location: Starting point (postcode, station name, or address)
+        to_location: Destination (postcode, station name, or address)
         via: Optional intermediate stop
         time: Optional time for journey (ISO format or HH:MM)
         time_is_arrival: If True, time is arrival time; if False, departure time
     """
+    try:
+        from_location = _validate_location(from_location, "Starting location")
+        to_location = _validate_location(to_location, "Destination")
+        if via:
+            via = _validate_location(via, "Via location")
+    except ValidationError as e:
+        return {"error": str(e)}
+
     api_key = os.getenv("TFL_API_KEY")
 
     try:
@@ -183,7 +183,7 @@ def plan_journey(from_location, to_location, via=None, time=None, time_is_arriva
         data = response.json()
 
         journeys = []
-        for journey in data.get("journeys", [])[:5]:  # Limit to 5 options
+        for journey in data.get("journeys", [])[:5]:
             legs = []
             for leg in journey.get("legs", []):
                 legs.append({
@@ -215,12 +215,17 @@ def plan_journey(from_location, to_location, via=None, time=None, time_is_arriva
         return sanitize_api_error(e)
 
 
-def get_bike_points(lat=None, lon=None, radius=500):
-    """Get bike sharing points (Santander Cycles) near a location.
+@mcp.tool(meta={"ui": {"resourceUri": "ui://bike-points"}})
+def get_bike_points(
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    radius: int = 500
+) -> dict:
+    """Get Santander Cycles docking stations in London.
 
     Args:
-        lat: Latitude (optional, searches all if not provided)
-        lon: Longitude (required if lat provided)
+        lat: Latitude for location search (optional)
+        lon: Longitude for location search (required if lat provided)
         radius: Search radius in meters (default: 500)
     """
     api_key = os.getenv("TFL_API_KEY")
@@ -230,7 +235,6 @@ def get_bike_points(lat=None, lon=None, radius=500):
         if api_key:
             params["app_key"] = api_key
 
-        # If coordinates provided, search nearby
         if lat is not None and lon is not None:
             response = requests.get(
                 f"{TFL_API_URL}/BikePoint",
@@ -238,7 +242,6 @@ def get_bike_points(lat=None, lon=None, radius=500):
                 timeout=10
             )
         else:
-            # Get all bike points
             response = requests.get(
                 f"{TFL_API_URL}/BikePoint",
                 params=params,
@@ -248,9 +251,16 @@ def get_bike_points(lat=None, lon=None, radius=500):
         response.raise_for_status()
         data = response.json()
 
-        # Limit to 20 results
+        # Handle different response formats:
+        # - With lat/lon: {"places": [...]}
+        # - Without: direct list [...]
+        if isinstance(data, dict):
+            points_list = data.get("places", [])
+        else:
+            points_list = data
+
         bike_points = []
-        for point in data[:20]:
+        for point in points_list[:20]:
             properties = {}
             for prop in point.get("additionalProperties", []):
                 key = prop.get("key")
@@ -269,7 +279,7 @@ def get_bike_points(lat=None, lon=None, radius=500):
             })
 
         return {
-            "total_results": len(data),
+            "total_results": len(points_list),
             "showing": len(bike_points),
             "bike_points": bike_points,
             "data_source": "Transport for London API",
@@ -280,11 +290,12 @@ def get_bike_points(lat=None, lon=None, radius=500):
         return sanitize_api_error(e)
 
 
-def get_road_status(road_ids):
-    """Get status of major roads (A roads) in London.
+@mcp.tool(meta={"ui": {"resourceUri": "ui://road-status"}})
+def get_road_status(road_ids: str) -> dict:
+    """Get current status of major roads in London.
 
     Args:
-        road_ids: Comma-separated road IDs (e.g., "A2,A40,M25")
+        road_ids: Comma-separated road IDs (e.g., 'A2,A40,M25')
     """
     api_key = os.getenv("TFL_API_KEY")
 
@@ -293,11 +304,9 @@ def get_road_status(road_ids):
         if api_key:
             params["app_key"] = api_key
 
-        # Validate road_ids format
         if not road_ids or not isinstance(road_ids, str):
             return {"error": "Road IDs must be provided as a string"}
 
-        # Clean and validate road IDs
         road_list = [r.strip().upper() for r in road_ids.split(",")]
         for road_id in road_list:
             if not road_id or len(road_id) > 10:
@@ -335,12 +344,13 @@ def get_road_status(road_ids):
         return sanitize_api_error(e)
 
 
-def search_stops(query, modes=None):
-    """Search for bus stops, tube stations, and other transit stops.
+@mcp.tool
+def search_stops(query: str, modes: Optional[str] = None) -> dict:
+    """Search for bus stops, tube stations, and other transit stops in London.
 
     Args:
         query: Search term (station name, postcode, etc.)
-        modes: Optional comma-separated list of modes (tube,bus,dlr,etc.)
+        modes: Optional comma-separated transport modes (tube,bus,dlr,overground,elizabeth-line,tram)
     """
     api_key = os.getenv("TFL_API_KEY")
 
@@ -361,7 +371,7 @@ def search_stops(query, modes=None):
         data = response.json()
 
         stops = []
-        for match in data.get("matches", [])[:20]:  # Limit to 20
+        for match in data.get("matches", [])[:20]:
             stops.append({
                 "id": match.get("id"),
                 "name": match.get("name"),

@@ -1,14 +1,28 @@
 """Care Quality Commission (CQC) ratings tool."""
 import requests
 from datetime import datetime
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error, InputValidator, ValidationError
 
 
 CQC_API_URL = "https://api.cqc.org.uk/public/v1"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def search_cqc_providers(name=None, postcode=None):
-    """Search for CQC registered care providers."""
+mcp = _get_mcp()
+
+
+@mcp.tool
+def search_cqc_providers(name: Optional[str] = None, postcode: Optional[str] = None) -> dict:
+    """Search for CQC registered care providers by name or postcode.
+
+    Args:
+        name: Provider name
+        postcode: UK postcode
+    """
     if not name and not postcode:
         return {"error": "Please provide either a provider name or postcode"}
 
@@ -34,7 +48,7 @@ def search_cqc_providers(name=None, postcode=None):
             return {"message": "No CQC providers found"}
 
         providers = []
-        for loc in locations[:20]:  # Limit to 20 results
+        for loc in locations[:20]:
             providers.append({
                 "location_id": loc.get("locationId"),
                 "name": loc.get("name"),
@@ -57,10 +71,14 @@ def search_cqc_providers(name=None, postcode=None):
         return sanitize_api_error(e)
 
 
-def get_cqc_provider(location_id):
-    """Get detailed information for a CQC provider."""
+@mcp.tool(meta={"ui": {"resourceUri": "ui://cqc-rating"}})
+def get_cqc_provider(location_id: str) -> dict:
+    """Get detailed CQC ratings and information for a care provider.
+
+    Args:
+        location_id: CQC location ID
+    """
     try:
-        # Validate location_id to prevent injection attacks
         location_id = InputValidator.validate_cqc_location_id(location_id)
     except ValidationError as e:
         return {"error": str(e)}

@@ -1,29 +1,35 @@
 # Gov.uk MCP Server
 
 A comprehensive Model Context Protocol (MCP) server providing access to 27 UK government data sources and services. Built for Claude Desktop and other MCP-compatible clients.
-NOTE: This is a hobby project of which around 80% is vibe coded, expect issues and use for demonstration purposes only. 
+
+> **Note:** This is a hobby project, expect issues and use for demonstration purposes only.
 
 ## 🌟 Features
 
 - **33 Government APIs**: Companies House, Parliament, NHS, Transport, and more
+- **15 Visual Widgets**: Rich UI components via MCP Apps for data visualization
+- **Production-Ready**: Comprehensive input validation, error sanitization, rate limiting
+- **Type-Safe**: Full input validation with regex patterns
+- **Secure**: Sanitized errors, XSS protection, origin validation
+- **Fast**: Concurrent execution for bulk operations (voting records)
 
-Try:
-"What are the five nearest postcodes to SW1A 1AA?"
-"When is the next Bank Holiday"
-"How can I get from Brixton to St Pancras?"
-"What's the status of the Circle Line"
-"Where's my nearest Hospital?"
-"Who's my MP?"
-"What's their voting record?"
+### 💬 Example Prompts
 
-And more.
+Try asking:
+- "What are the five nearest postcodes to SW1A 1AA?"
+- "When is the next Bank Holiday?"
+- "How can I get from Brixton to St Pancras?"
+- "What's the status of the Circle Line?"
+- "Where's my nearest Hospital?"
+- "Who's my MP?"
+- "What's their voting record?"
 
 ## 📦 Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/govmcp.git
-cd govmcp
+git clone https://github.com/brummiesteven/GovUK-MCP.git
+cd GovUK-MCP
 
 # Install dependencies
 pip install -e .
@@ -114,6 +120,31 @@ python -m gov_uk_mcp.server
 
 ### Other Services (4)
 - `search_epc_by_postcode`, `find_courts`, `search_govuk`, `get_bank_holidays`, `search_legislation`
+
+
+## 🎨 MCP Apps Widgets
+
+This server includes 15 visual widgets compatible with [MCP Apps](https://github.com/anthropics/mcp-apps)-enabled clients. Widgets provide rich, interactive visualizations of API responses.
+
+| Widget | Description |
+|--------|-------------|
+| `tube-status` | London Underground status with line colors |
+| `postcode-lookup` | Location information grid |
+| `company-info` | Companies House profile card |
+| `food-hygiene` | FSA ratings with score indicators |
+| `flood-warnings` | Environment Agency alerts |
+| `mp-info` | MP profile with photo and party colors |
+| `bank-holidays` | Upcoming holidays calendar |
+| `crime-stats` | Crime breakdown by category |
+| `cqc-rating` | Care quality ratings display |
+| `charity-info` | Charity Commission details |
+| `voting-record` | Parliamentary voting history |
+| `bike-points` | Santander Cycles availability |
+| `journey-planner` | TfL journey with step-by-step |
+| `road-status` | Major road conditions |
+| `nhs-services` | GP, hospital, pharmacy finder |
+
+Widgets are automatically served when tools are called from compatible clients.
 
 
 ## 🧪 Testing

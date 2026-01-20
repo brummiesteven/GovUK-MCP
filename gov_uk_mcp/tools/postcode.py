@@ -6,9 +6,23 @@ from gov_uk_mcp.validation import InputValidator, ValidationError, sanitize_api_
 
 POSTCODES_API_URL = "https://api.postcodes.io"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def lookup_postcode(postcode):
-    """Look up details for a UK postcode."""
+mcp = _get_mcp()
+
+
+@mcp.tool(meta={"ui": {"resourceUri": "ui://postcode-lookup"}})
+def lookup_postcode(postcode: str) -> dict:
+    """Look up details for a UK postcode.
+
+    Args:
+        postcode: UK postcode (e.g., SW1A 1AA)
+
+    Returns location, council, constituency, and coordinates.
+    """
     try:
         postcode = InputValidator.validate_uk_postcode(postcode)
     except ValidationError as e:
@@ -61,8 +75,14 @@ def lookup_postcode(postcode):
         return sanitize_api_error(e)
 
 
-def nearest_postcodes(postcode, limit=10):
-    """Find nearest postcodes to a given postcode."""
+@mcp.tool
+def nearest_postcodes(postcode: str, limit: int = 10) -> dict:
+    """Find nearest postcodes to a given postcode.
+
+    Args:
+        postcode: UK postcode (e.g., SW1A 1AA)
+        limit: Number of nearest postcodes to return (default: 10)
+    """
     try:
         postcode = InputValidator.validate_uk_postcode(postcode)
     except ValidationError as e:

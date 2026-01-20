@@ -1,20 +1,34 @@
 """Parliamentary questions search tool."""
 import requests
 from datetime import datetime
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error
 
 
 QUESTIONS_API_URL = "https://questions-statements-api.parliament.uk/api"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def search_questions(query, mp_name=None, department=None, limit=20):
-    """Search parliamentary written questions.
+mcp = _get_mcp()
+
+
+@mcp.tool
+def search_questions(
+    query: str,
+    mp_name: Optional[str] = None,
+    department: Optional[str] = None,
+    limit: int = 20
+) -> dict:
+    """Search parliamentary written questions and answers.
 
     Args:
         query: Search term
         mp_name: Filter by MP name (optional)
-        department: Filter by answering department (optional)
-        limit: Number of results to return
+        department: Filter by government department (optional)
+        limit: Number of results (default: 20)
     """
     mp_id = None
     if mp_name:
@@ -81,42 +95,14 @@ def search_questions(query, mp_name=None, department=None, limit=20):
         return sanitize_api_error(e)
 
 
-def get_question_by_id(question_id):
-    """Get details of a specific parliamentary question."""
-    try:
-        response = requests.get(
-            f"{QUESTIONS_API_URL}/writtenquestions/questions/{question_id}",
-            timeout=10
-        )
+@mcp.tool
+def get_questions_by_mp(mp_name: str, limit: int = 20) -> dict:
+    """Get all parliamentary questions asked by a specific MP.
 
-        if response.status_code == 404:
-            return {"error": "Question not found"}
-
-        response.raise_for_status()
-        data = response.json()
-        q = data.get("value", {})
-
-        return {
-            "id": q.get("id"),
-            "uin": q.get("uin"),
-            "date_tabled": q.get("dateTabled"),
-            "question_text": q.get("questionText"),
-            "asking_member": q.get("askingMemberPrinted"),
-            "asking_member_constituency": q.get("askingMemberConstituency"),
-            "answering_body": q.get("answeringBodyName"),
-            "answer_text": q.get("answerText"),
-            "answer_date": q.get("dateAnswered"),
-            "is_withdrawn": q.get("isWithdrawn"),
-            "data_source": "Parliamentary Questions API",
-            "retrieved_at": datetime.now().isoformat()
-        }
-
-    except (requests.Timeout, requests.RequestException, requests.HTTPError) as e:
-        return sanitize_api_error(e)
-
-
-def get_questions_by_mp(mp_name, limit=20):
-    """Get all questions asked by a specific MP."""
+    Args:
+        mp_name: MP name
+        limit: Number of results (default: 20)
+    """
     from gov_uk_mcp.tools.mps import find_mp
 
     mp_result = find_mp(mp_name)

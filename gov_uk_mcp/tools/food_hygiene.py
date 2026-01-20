@@ -1,14 +1,33 @@
 """Food hygiene ratings tool."""
 import requests
 from datetime import datetime
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error
 
 
 FOOD_HYGIENE_API_URL = "https://api.ratings.food.gov.uk"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def search_food_establishments(name=None, postcode=None, local_authority=None):
-    """Search for food establishments by name, postcode, or local authority."""
+mcp = _get_mcp()
+
+
+@mcp.tool(meta={"ui": {"resourceUri": "ui://food-hygiene"}})
+def search_food_establishments(
+    name: Optional[str] = None,
+    postcode: Optional[str] = None,
+    local_authority: Optional[str] = None
+) -> dict:
+    """Search for food establishments and their hygiene ratings.
+
+    Args:
+        name: Business name to search for
+        postcode: Postcode to search in
+        local_authority: Local authority ID
+    """
     if not any([name, postcode, local_authority]):
         return {"error": "Please provide at least one search parameter (name, postcode, or local_authority)"}
 
@@ -16,7 +35,8 @@ def search_food_establishments(name=None, postcode=None, local_authority=None):
     if name:
         params["name"] = name
     if postcode:
-        params["address"] = postcode.replace(" ", "")
+        # FSA API requires spaces in postcodes for accurate matching
+        params["address"] = postcode.strip()
     if local_authority:
         params["localAuthorityId"] = local_authority
 
@@ -43,7 +63,7 @@ def search_food_establishments(name=None, postcode=None, local_authority=None):
             }
 
         results = []
-        for est in establishments[:20]:  # Limit to 20 results
+        for est in establishments[:20]:
             results.append({
                 "business_name": est.get("BusinessName"),
                 "address": est.get("AddressLine1"),

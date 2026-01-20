@@ -1,0 +1,95 @@
+name: Bug Report
+description: File a bug report to help us improve
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out this form as completely as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Configure MCP server with '...'
+        2. Call tool '...'
+        3. Pass argument '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: I expected to receive...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: Instead I got...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs
+      description: Please paste any relevant error messages or logs
+      render: shell
+      placeholder: Paste logs here...
+
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool is affected?
+      options:
+        - Companies House (search_companies, get_company, etc.)
+        - NHS (find_gp_surgeries, find_hospitals, etc.)
+        - Transport (get_tube_status, get_line_status)
+        - Parliament (find_mp, search_hansard, etc.)
+        - Postcode (lookup_postcode, nearest_postcodes)
+        - Other (please specify in description)
+        - Not tool-specific
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: What version of Python are you using?
+      placeholder: "3.10.0"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you running on?
+      placeholder: "macOS 14.0, Ubuntu 22.04, Windows 11"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem
+      placeholder: Any other details that might help...

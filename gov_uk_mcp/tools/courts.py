@@ -1,14 +1,30 @@
 """Court finder tool."""
 import requests
 from datetime import datetime
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error
 
 
 COURTS_API_URL = "https://www.find-court-tribunal.service.gov.uk/search/results.json"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def find_courts(postcode=None, name=None):
-    """Find courts by postcode or name."""
+mcp = _get_mcp()
+
+
+@mcp.tool
+def find_courts(postcode: Optional[str] = None, name: Optional[str] = None) -> dict:
+    """Find courts by postcode or name.
+
+    Args:
+        postcode: UK postcode
+        name: Court name to search for
+
+    Returns court details, types, and contact information.
+    """
     if not postcode and not name:
         return {"error": "Please provide either a postcode or court name"}
 
@@ -33,7 +49,7 @@ def find_courts(postcode=None, name=None):
             return {"message": "No courts found"}
 
         courts = []
-        for court in courts_data[:20]:  # Limit to 20 results
+        for court in courts_data[:20]:
             courts.append({
                 "name": court.get("name"),
                 "types": court.get("types", []),
@@ -49,41 +65,6 @@ def find_courts(postcode=None, name=None):
             "total_results": len(courts_data),
             "showing": len(courts),
             "courts": courts,
-            "data_source": "Court and Tribunal Finder",
-            "retrieved_at": datetime.now().isoformat()
-        }
-
-    except (requests.Timeout, requests.RequestException, requests.HTTPError) as e:
-        return sanitize_api_error(e)
-
-
-def get_court_details(slug):
-    """Get detailed information for a specific court."""
-    try:
-        response = requests.get(
-            f"https://www.find-court-tribunal.service.gov.uk/courts/{slug}.json",
-            timeout=10
-        )
-
-        if response.status_code == 404:
-            return {"error": "Court not found"}
-
-        response.raise_for_status()
-        data = response.json()
-
-        return {
-            "name": data.get("name"),
-            "types": data.get("types", []),
-            "address": data.get("address"),
-            "postcode": data.get("postcode"),
-            "info": data.get("info"),
-            "open": data.get("open"),
-            "directions": data.get("directions"),
-            "email": data.get("email"),
-            "contacts": data.get("contacts", []),
-            "opening_times": data.get("opening_times", []),
-            "facilities": data.get("facilities", []),
-            "areas_of_law": data.get("areas_of_law", []),
             "data_source": "Court and Tribunal Finder",
             "retrieved_at": datetime.now().isoformat()
         }

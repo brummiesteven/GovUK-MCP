@@ -1,17 +1,26 @@
 """Bank holidays tool."""
 import requests
 from datetime import datetime, date
+from typing import Optional
 from gov_uk_mcp.validation import sanitize_api_error
 
 
 BANK_HOLIDAYS_URL = "https://www.gov.uk/bank-holidays.json"
 
+# Import mcp after defining constants to avoid circular import at module level
+def _get_mcp():
+    from gov_uk_mcp.server import mcp
+    return mcp
 
-def get_bank_holidays(country=None):
+mcp = _get_mcp()
+
+
+@mcp.tool(meta={"ui": {"resourceUri": "ui://bank-holidays"}})
+def get_bank_holidays(country: Optional[str] = None) -> dict:
     """Get UK bank holidays.
 
     Args:
-        country: Optional filter for specific country (england-and-wales, scotland, northern-ireland)
+        country: Country to get holidays for (england-and-wales, scotland, northern-ireland)
     """
     try:
         response = requests.get(BANK_HOLIDAYS_URL, timeout=10)
@@ -27,7 +36,6 @@ def get_bank_holidays(country=None):
 
             events = data[country_key].get("events", [])
 
-            # Filter for upcoming holidays
             upcoming = [
                 event for event in events
                 if datetime.strptime(event["date"], "%Y-%m-%d").date() >= today
@@ -40,7 +48,6 @@ def get_bank_holidays(country=None):
                 "retrieved_at": datetime.now().isoformat()
             }
 
-        # Return all countries
         result = {}
         for country_key, country_data in data.items():
             events = country_data.get("events", [])
